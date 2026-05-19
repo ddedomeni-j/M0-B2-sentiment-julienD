@@ -17,11 +17,14 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from pathlib import Path
+import time
 from typing import Any
 
 import joblib
 from fastapi import FastAPI, HTTPException
 from loguru import logger
+
+import pandas as pd
 
 from app.schemas import HealthResponse, MachineInput, PredictionResponse
 
@@ -73,6 +76,8 @@ def health() -> HealthResponse:
     Returns:
         HealthResponse — `status="ok"` si le modèle est chargé, `degraded` sinon.
     """
+    logger.info("Vérification de la santé du service...")
+    
     is_loaded = "model" in state
     return HealthResponse(
         status="ok" if is_loaded else "degraded",
@@ -82,32 +87,22 @@ def health() -> HealthResponse:
 
 @app.post("/predict", response_model=PredictionResponse)
 def predict(item: MachineInput) -> PredictionResponse:
-    """Prédit la criticité d'une machine à partir de ses caractéristiques.
+    start_time = time.time()
+    logger.info(f"Entrée : {item}")
+                
+    dataFrame = pd.DataFrame([item.model_dump()])
+    model = state["model"]
+    prediction = model.predict(dataFrame)[0] # classe de prédiction
+    probabilities = model.predict_proba(dataFrame)[0] # probabilités pour chaque classe
+    classes = model.classes_
 
-    🎯 **À COMPLÉTER PAR L'APPRENANT.**
+    logger.info(f"Prédiction de la classe pour ce dataframe: {prediction}")
 
-    Indices d'implémentation :
+    logger.info(f"Duree du traitement de la requete: {time.time() - start_time:.2f} secondes")
 
-    1. Construire un DataFrame pandas à 1 ligne à partir de `item.model_dump()`.
-       Le pipeline scikit-learn attend les colonnes dans le même ordre qu'à
-       l'entraînement (cf. `model/train_baseline.py`, `NUM_FEATURES` + `CAT_FEATURES`).
-    2. Récupérer le modèle via `state["model"]`.
-    3. Appeler `model.predict(df)[0]` pour obtenir la classe prédite (str).
-    4. Appeler `model.predict_proba(df)[0]` pour obtenir les probabilités.
-       Les classes correspondantes sont dans `model.classes_`.
-    5. Construire et retourner un `PredictionResponse`.
-    6. Logger l'entrée + la classe prédite + le temps de réponse via Loguru.
-
-    Args:
-        item: caractéristiques de la machine (cf. `schemas.MachineInput`).
-
-    Returns:
-        PredictionResponse avec la classe prédite et les probabilités.
-    """
-    raise HTTPException(
-        status_code=501,
-        detail=(
-            "Endpoint /predict à implémenter — voir TODO dans app/main.py "
-            "et le mini-cours 01_FastAPI_essentiel.md."
-        ),
+    return PredictionResponse(
+        criticite=prediction,
+        probabilites={classes[i]: probabilities[i] for i in range(len(classes))}
     )
+
+   

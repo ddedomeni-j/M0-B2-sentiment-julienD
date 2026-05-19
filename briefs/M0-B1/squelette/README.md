@@ -3,13 +3,18 @@
 > Repo de départ à cloner pour le brief M0-B1 (FastIA — intégration d'un modèle
 > scikit-learn pré-entraîné dans une API REST). **Doit tourner dès le clone.**
 
-## 🎯 Ce que tu trouves dans ce repo
+## 🎯 Objectif 
+
+Fournir une prédiction de maintenance en fonction des caractéristiques d'une machine, d'après le model déjà entrainé, via l'endpoint /predict.
+
+
+## 🎯 Architecture
 
 ```
 squelette/
 ├── app/
 │   ├── __init__.py
-│   ├── main.py             ← FastAPI : /health (✅ fonctionnel) + /predict (à compléter)
+│   ├── main.py             ← FastAPI : /health 
 │   └── schemas.py          ← Pydantic : MachineInput, PredictionResponse
 ├── data/
 │   ├── generate_dataset.py ← script de régénération du dataset (déjà exécuté)
@@ -19,8 +24,8 @@ squelette/
 │   └── model.joblib        ← modèle pré-entraîné, ~6.6 Mo (à charger au démarrage)
 ├── tests/
 │   ├── __init__.py
-│   └── test_health.py      ← test pytest fonctionnel au clone (✅)
-├── Dockerfile              ← squelette commenté à compléter
+│   └── test_health.py      ← test pytest 
+├── Dockerfile              ← squelette 
 ├── requirements.txt        ← dépendances figées
 ├── .gitignore
 └── README.md               ← (ce fichier)
@@ -32,31 +37,36 @@ squelette/
 - Un environnement virtuel **activé** (cf. mini-cours `01_Setup_environnement_essentiel.md`
   du brief P0)
 
-## 🚀 Démarrage en 3 commandes
+## 🚀 Démarrage 
 
 ```bash
+# 0. Se positionner dans le dossier /squelette
+
 # 1. Installer les dépendances dans ton env virtuel activé
-pip install -r requirements.txt
+uv pip install -r requirements.txt
 
 # 2. Lancer l'API en mode dev (rechargement automatique sur modification)
 uvicorn app.main:app --reload
+# À l'étape 2, tu peux ouvrir <http://localhost:8000/docs> pour voir l'interface
+# Swagger générée automatiquement par FastAPI. L'endpoint `/health` doit déjà répondre
+# `{"status": "ok", "model_loaded": true}`.
 
 # 3. Dans un autre terminal : lancer les tests
 pytest
+
+# 4. Build image docker
+docker build -t fastia-maintenance:dev .
+
+# 5. Run image docker (Docker Desktop doit etre lancé)
+docker run --rm -p 8000:8000 fastia-maintenance:dev
+
+# 6. Accès via docker 
+http://localhost:8000/health
+
+# 7. Accès aux API via Swagger :
+http://localhost:8000/docs
+
 ```
-
-À l'étape 2, tu peux ouvrir <http://localhost:8000/docs> pour voir l'interface
-Swagger générée automatiquement par FastAPI. L'endpoint `/health` doit déjà répondre
-`{"status": "ok", "model_loaded": true}`.
-
-## ✏️ Ce que tu dois compléter
-
-| Fichier | Tâche |
-|---|---|
-| `app/main.py` | Implémenter l'endpoint **POST `/predict`** (TODO marqué dans le code) |
-| `tests/` | Ajouter au moins **2 tests** pour `/predict` (cas valide + cas d'erreur 422) |
-| `Dockerfile` | Compléter le squelette commenté (cf. mini-cours `02_Docker_essentiel.md`) |
-| `app/main.py` | Ajouter du **logging Loguru** sur chaque requête (cf. `03_Loguru_essentiel.md`) |
 
 ## 🔁 Régénérer le dataset ou le modèle (optionnel)
 

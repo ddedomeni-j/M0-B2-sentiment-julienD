@@ -1,5 +1,24 @@
 # Dockerfile — service de criticité maintenance prédictive (M0-B1)
-#
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# 1. Dépendances d'abord (cache des couches)
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 2. Code applicatif
+COPY app/ ./app/
+COPY model/ ./model/
+COPY data/ ./data/
+
+EXPOSE 8000
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+
+
+
 # 🎯 À COMPLÉTER PAR L'APPRENANT.
 #
 # Indices d'implémentation (cf. mini-cours `02_Docker_essentiel.md`) :

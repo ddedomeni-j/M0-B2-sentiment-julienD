@@ -10,8 +10,10 @@ from __future__ import annotations
 import logging
 import os
 import sys
+import time
 from contextlib import asynccontextmanager
 from typing import Any
+from transformers import pipeline
 
 from fastapi import FastAPI, HTTPException, status
 from loguru import logger
@@ -129,6 +131,8 @@ def predict(payload: ReviewIn) -> SentimentOut:
     À compléter par l'apprenant — Tâche 3 du brief. Au clone, l'endpoint
     renvoie 501 Not Implemented.
     """
+  
+    
     # Pas de check `model_loaded` ici : politique fail-fast — si le pipeline
     # ne s'est pas chargé, le conteneur a crashé au démarrage et on n'arrive
     # jamais ici. `state["pipeline"]` est donc garanti non-None.
@@ -138,12 +142,39 @@ def predict(payload: ReviewIn) -> SentimentOut:
             detail=f"Texte trop long (> {MAX_TEXT_LENGTH} caractères).",
         )
 
-    # TODO Tâche 3 — Appeler inference.predict_sentiment() et logger la requête.
-    # Pour l'instant, on signale que ce n'est pas implémenté.
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail=(
-            "Endpoint /predict pas encore implémenté. Voir Tâche 3 du brief "
-            "et `app/inference.py`."
-        ),
+    start_time = time.time()
+
+    analyzer = pipeline(
+        task='text-classification',
+        model="cmarkea/distilcamembert-base-sentiment",
+        tokenizer="cmarkea/distilcamembert-base-sentiment",
+        top_k=None
     )
+    inference = analyzer(
+        payload.texte,
+        return_all_scores=True
+    )
+    duration_ms = (time.time() - start_time) * 1000
+
+    prediction = inference.predict_sentiment(payload.texte)
+    logger.info("Requête /predict : prediction={}", prediction)
+    scores = inference.scores_to_dict(prediction)
+    logger.info("Requête /predict : scores={}", scores)
+
+    return SentimentOut(
+        sentiment = prediction,
+        scores=scores,
+        model_name=MODEL_NAME,
+        latence_ms=duration_ms
+    )
+
+
+    # TODO Tâche 3 — Appeler inference.predict_sentiment() et logger la requête.
+    # # Pour l'instant, on signale que ce n'est pas implémenté.
+    # raise HTTPException(
+    #     status_code=status.HTTP_501_NOT_IMPLEMENTED,
+    #     detail=(
+    #         "Endpoint /predict pas encore implémenté. Voir Tâche 3 du brief "
+    #         "et `app/inference.py`."
+    #     ),
+    # )

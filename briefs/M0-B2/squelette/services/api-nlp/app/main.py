@@ -13,13 +13,13 @@ import sys
 import time
 from contextlib import asynccontextmanager
 from typing import Any
-from transformers import pipeline
+from transformers import data, pipeline
 
 from fastapi import FastAPI, HTTPException, status
 from loguru import logger
 
 from app import inference
-from app.schemas import HealthOut, InfoOut, ReviewIn, SentimentOut
+from app.schemas import HealthOut, InfoOut, ReviewIn, Sentiment, SentimentOut
 
 
 # --- Configuration Loguru (compact, lisible pour des apprenants) ---
@@ -150,20 +150,32 @@ def predict(payload: ReviewIn) -> SentimentOut:
         tokenizer="cmarkea/distilcamembert-base-sentiment",
         top_k=None
     )
-    inference = analyzer(
+    sentiment = analyzer(
         payload.texte,
         return_all_scores=True
     )
+    
     duration_ms = (time.time() - start_time) * 1000
 
-    prediction = inference.predict_sentiment(payload.texte)
-    logger.info("Requête /predict : prediction={}", prediction)
-    scores = inference.scores_to_dict(prediction)
-    logger.info("Requête /predict : scores={}", scores)
+    logger.info("Requête /predict 5 classes: prediction={}", sentiment)
+
+    scores_3classe = [sentiment[0][0]["score"] + sentiment[0][1]["score"], sentiment[0][2]["score"], sentiment[0][3]["score"] + sentiment[0][4]["score"]]
+    index_max = scores_3classe.index(max(scores_3classe))
+    if index_max == 0:
+        sentiment_3classe = "positif"
+    elif index_max == 1:
+        sentiment_3classe = "neutre"
+    else:
+        sentiment_3classe = "négatif"
+    
+    logger.info("Prediction 3 classes: {}", sentiment_3classe)
+    logger.info("Duree: {} ms", duration_ms)
+
+    result = {d['label']: d['score'] for d in sentiment[0]}
 
     return SentimentOut(
-        sentiment = prediction,
-        scores=scores,
+        sentiment = sentiment_3classe,
+        scores_5_stars=result,
         model_name=MODEL_NAME,
         latence_ms=duration_ms
     )

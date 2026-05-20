@@ -21,6 +21,7 @@ from loguru import logger
 from app import inference
 from app.schemas import HealthOut, InfoOut, ReviewIn, Sentiment, SentimentOut
 
+import torch
 
 # --- Configuration Loguru (compact, lisible pour des apprenants) ---
 # Désactive `diagnose` (dump des variables locales dans la traceback) et
@@ -77,8 +78,16 @@ async def lifespan(app: FastAPI):
         model=MODEL_NAME,
         tokenizer=MODEL_NAME,
         top_k=None,
+        device=0 if torch.cuda.is_available() else -1
     )
     logger.success("Pipeline chargé. Modèle prêt.")
+
+    state["pipeline"] = pipeline(
+                            task='text-classification',
+                            model="cmarkea/distilcamembert-base-sentiment",
+                            tokenizer="cmarkea/distilcamembert-base-sentiment",
+                            top_k=None
+                        )
 
     yield
 
@@ -131,8 +140,7 @@ def predict(payload: ReviewIn) -> SentimentOut:
     À compléter par l'apprenant — Tâche 3 du brief. Au clone, l'endpoint
     renvoie 501 Not Implemented.
     """
-  
-    
+
     # Pas de check `model_loaded` ici : politique fail-fast — si le pipeline
     # ne s'est pas chargé, le conteneur a crashé au démarrage et on n'arrive
     # jamais ici. `state["pipeline"]` est donc garanti non-None.
@@ -144,29 +152,35 @@ def predict(payload: ReviewIn) -> SentimentOut:
 
     start_time = time.time()
 
-    analyzer = pipeline(
-        task='text-classification',
-        model="cmarkea/distilcamembert-base-sentiment",
-        tokenizer="cmarkea/distilcamembert-base-sentiment",
-        top_k=None
-    )
-    sentiment = analyzer(
-        payload.texte,
-        return_all_scores=True
-    )
+    sentiment = state["pipeline"](
+                        payload.texte,
+                        return_all_scores=True
+                    )
     
     duration_ms = (time.time() - start_time) * 1000
 
     logger.info("Requête /predict 5 classes: prediction={}", sentiment)
 
-    scores_3classe = [sentiment[0][0]["score"] + sentiment[0][1]["score"], sentiment[0][2]["score"], sentiment[0][3]["score"] + sentiment[0][4]["score"]]
-    index_max = scores_3classe.index(max(scores_3classe))
-    if index_max == 0:
-        sentiment_3classe = "positif"
-    elif index_max == 1:
-        sentiment_3classe = "neutre"
-    else:
-        sentiment_3classe = "négatif"
+    # scores_3classe = [sentiment[0][0]["score"] + sentiment[0][1]["score"], sentiment[0][2]["score"], sentiment[0][3]["score"] + sentiment[0][4]["score"]]
+    
+    scores_3classes = {
+        "négatif": 0.0,
+        "neutre": 0.0,
+        "positif": 0.0
+    }
+
+    for item in sentiment[0]:
+        label = item["label"]
+        score = item["score"]
+
+        if label in ["1 star", "2 stars"]:
+            scores_3classes["négatif"] += score
+        elif label == "3 stars":
+            scores_3classes["neutre"] += score
+        elif label in ["4 stars", "5 stars"]:
+            scores_3classes["positif"] += score
+
+    sentiment_3classe = max(scores_3classes, key=scores_3classes.get)
     
     logger.info("Prediction 3 classes: {}", sentiment_3classe)
     logger.info("Duree: {} ms", duration_ms)

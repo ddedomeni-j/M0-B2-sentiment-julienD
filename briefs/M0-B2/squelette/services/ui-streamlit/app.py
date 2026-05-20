@@ -21,8 +21,11 @@ import streamlit as st
 
 import httpx
 
-API_URL: str = os.getenv("API_URL", "http://api-nlp:8000")
+API_URL: str = os.getenv("API_URL", "http://127.0.0.1:8000")
+url = f"{API_URL}/predict"
 
+print(API_URL)
+print(url)
 
 st.set_page_config(
     page_title="Aubergine Hôtels — sentiment FR",
@@ -65,7 +68,7 @@ if st.button("Analyser", type="primary", disabled=not texte.strip()):
     try:
         with httpx.Client() as client:
             response = client.post(
-                "http://127.0.0.1:8000/predict",
+                url,
                 json=payload,
                 timeout=10.0
             )

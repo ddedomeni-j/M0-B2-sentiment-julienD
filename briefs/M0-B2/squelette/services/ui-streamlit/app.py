@@ -19,6 +19,7 @@ import os
 
 import streamlit as st
 
+import httpx
 
 API_URL: str = os.getenv("API_URL", "http://api-nlp:8000")
 
@@ -52,11 +53,57 @@ if st.button("Analyser", type="primary", disabled=not texte.strip()):
     # - Affiche le sentiment dans un encadré coloré (st.success / st.warning /
     #   st.error selon la classe).
     # - Affiche les scores 5 étoiles bruts via st.bar_chart().
-    st.info("📡 Appel API à implémenter — Tâche 4 du brief M0-B2.")
-    st.code(
-        f'httpx.post("{API_URL}/predict", json={{"texte": "..."}}, timeout=10)',
-        language="python",
-    )
+    
+    # st.info("📡 Appel API à implémenter — Tâche 4 du brief M0-B2.")
+    # st.code(
+    #     f'httpx.post("{API_URL}/predict", json={{"texte": "..."}}, timeout=10)',
+    #     language="python",
+    # )
+    
+    payload = {"texte": texte}
+
+    try:
+        with httpx.Client() as client:
+            response = client.post(
+                "http://127.0.0.1:8000/predict",
+                json=payload,
+                timeout=10.0
+            )
+
+        if response.status_code == 200:
+            result = response.json()
+            st.success(f"Prédiction : {result}")
+
+            couleurs = {
+                "négatif": "red",
+                "neutre": "orange",
+                "positif": "green"
+            }
+
+            couleur = couleurs.get(result["sentiment"], "gray")
+
+            st.markdown(
+                f"""
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="
+                        width: 20px;
+                        height: 20px;
+                        border-radius: 50%;
+                        background-color: {couleur};
+                    "></div>
+                    <span style="font-size:18px;">{result["sentiment"]}</span>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+        else:
+            st.error(f"Erreur {response.status_code} : {response.text}")
+
+    except httpx.RequestError as e:
+        st.error(f"Erreur réseau : {e}")
+
+
 
 with st.sidebar:
     st.markdown(f"**API URL** : `{API_URL}`")

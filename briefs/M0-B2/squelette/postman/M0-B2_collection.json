@@ -1,16 +1,11 @@
 {
   "info": {
+    "_postman_id": "51e5a009-f41e-4213-96bd-e651a65420f0",
     "name": "M0-B2 Aubergine Hôtels — sentiment FR",
     "description": "Collection Postman de départ pour le brief M0-B2. Les requêtes `/health` et `/info` sont préremplies. Les requêtes `/predict` sont à compléter selon les cas que tu veux tester (happy path, cas limites, cas piégeux).",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "15131619"
   },
-  "variable": [
-    {
-      "key": "base_url",
-      "value": "http://localhost:8000",
-      "type": "string"
-    }
-  ],
   "item": [
     {
       "name": "GET /health",
@@ -19,8 +14,12 @@
         "header": [],
         "url": {
           "raw": "{{base_url}}/health",
-          "host": ["{{base_url}}"],
-          "path": ["health"]
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "health"
+          ]
         },
         "description": "Statut du service. `model_loaded:true` quand le modèle CamemBERT est prêt."
       },
@@ -33,8 +32,12 @@
         "header": [],
         "url": {
           "raw": "{{base_url}}/info",
-          "host": ["{{base_url}}"],
-          "path": ["info"]
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "info"
+          ]
         },
         "description": "Métadonnées du service : nom du modèle, classes natives 5★, classes cibles 3 (négatif/neutre/positif), max length texte."
       },
@@ -56,8 +59,12 @@
         },
         "url": {
           "raw": "{{base_url}}/predict",
-          "host": ["{{base_url}}"],
-          "path": ["predict"]
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "predict"
+          ]
         },
         "description": "Cas valide attendu : sentiment = 'positif'."
       },
@@ -79,8 +86,12 @@
         },
         "url": {
           "raw": "{{base_url}}/predict",
-          "host": ["{{base_url}}"],
-          "path": ["predict"]
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "predict"
+          ]
         },
         "description": "Cas valide attendu : sentiment = 'négatif'."
       },
@@ -102,12 +113,131 @@
         },
         "url": {
           "raw": "{{base_url}}/predict",
-          "host": ["{{base_url}}"],
-          "path": ["predict"]
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "predict"
+          ]
         },
         "description": "Validation Pydantic : texte vide doit renvoyer 422."
       },
       "response": []
+    },
+    {
+      "name": "POST /predict — review positive classée neutre",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"texte\": \"Personnel charmant, chambre impeccable, petit-déjeuner copieux. On reviendra !\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/predict",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "predict"
+          ]
+        },
+        "description": "Cas valide attendu : sentiment = 'positif'."
+      },
+      "response": []
+    },
+    {
+      "name": "POST /predict — review neutre classée positive",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"texte\": \"Personnel charmant, chambre impeccable, petit-déjeuner copieux. On reviendra !\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/predict",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "predict"
+          ]
+        },
+        "description": "Cas valide attendu : sentiment = 'positif'."
+      },
+      "response": []
+    },
+    {
+      "name": "POST /predict — review négative classée positive",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"texte\": \"Personnel charmant, chambre impeccable, petit-déjeuner copieux. On reviendra !\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/predict",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "predict"
+          ]
+        },
+        "description": "Cas valide attendu : sentiment = 'positif'."
+      },
+      "response": []
+    },
+    {
+      "name": "POST /predict — requete trop longue",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"texte\": \"Personnel charmant, chambre impeccable, petit-déjeuner copieux. On reviendra !\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/predict",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "predict"
+          ]
+        },
+        "description": "Cas valide attendu : sentiment = 'positif'."
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
     }
   ]
 }

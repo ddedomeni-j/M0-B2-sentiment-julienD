@@ -1,81 +1,66 @@
-# M0-B2 — Squelette : sentiment FR Aubergine Hôtels
+# M0-B2 : sentiment FR Aubergine Hôtels
 
-Stack `docker compose` à 2 services qui démarre dès le clone (healthcheck
-inclus).
+Ce code propose une interface permettant d'analyser les commentaires reçus par une chaîne d'hôtels. 
+L'application est composée de 2 services. Le premier développé avec STreamlit est une UI qui permet d'appeler
+un service basé sur le modèle DistilCamemBERT permettant de classer les avis en positifs, négatifs ou neutre.
 
-```bash
-# 1. Configurer l'environnement
-cp .env.example .env
+## Architecture
 
-# 2. Construire et lancer la stack
-docker compose up --build
+<img src="./images/ArchitectureM0_B2.jpg" width="1500">
 
-# 3. Vérifier
-curl http://localhost:8000/health        # API NLP
-open  http://localhost:8501              # UI Streamlit
+## Organisation du repo
+
 ```
-
-À l'arrêt : `Ctrl+C` puis `docker compose down` (les volumes `models/` et
-`logs/` sont conservés — le modèle HF n'est pas re-téléchargé au prochain `up`).
-
-> ⏱️ Le **1ᵉʳ démarrage** prend 3-5 min de build + 1-3 min de download du
-> modèle CamemBERT (~270 Mo). Les démarrages suivants sont < 30 s grâce au
-> cache volume `models/`.
-
----
+M0-B1-maintenance-JulienD/
+├── data/
+│   ├── README.md
+│   ├── sample_reviews.csv             ← Cas tests
+├── images/                            ← illustrations Readme     
+├── postman/
+│   └── M0-B2_collection.json          ← Collection des tests manuels
+├── services/  
+│   ├── api-nlp/                       ← FastAPI + transformers
+│   │   ├── Dockerfile
+│   │   ├── requirements.txt
+│   │   ├── app/
+│   │   │   ├── main.py                ← routes (lifespan + /health + /info + /predict)
+│   │   │   ├── schemas.py             ← Pydantic ReviewIn / SentimentOut
+│   │   │   └── inference.py           ← Appel du modèle
+│   │   └── tests/
+│   │       └── test_health.py         ← test healthcheck
+│   │       └── test_predict.py        ← test inférence
+│   └── ui-streamlit/                  ← UI utilisateur
+│       ├── Dockerfile
+│       ├── requirements.txt
+│       └── app.py                     ← UI permettantb de saisir un commentaire et d'appeler le modèle
+├── docker-compose.yml                 ← Fichier d'orchestration des services
+├── .gitignore
+└── README.md                          ← (ce fichier)
+```
 
 ## Modèle utilisé
 
 **`cmarkea/distilcamembert-base-sentiment`** — DistilCamemBERT FR,
 68 M paramètres, ~270 Mo.
 
-⚠️ Le modèle sort **5 étoiles** (`'1 star'` … `'5 stars'`). Le métier
-(Aubergine Hôtels) veut **3 classes** (`négatif/neutre/positif`).
+⚠️ Les 5 classes de sortie du modèle (`'1 star'` … `'5 stars'`) sont mappées en classes
+pour des raisons métier (`négatif/neutre/positif`).
 
-→ Tu dois implémenter le **mapping 5★ → 3 classes** dans
-`services/api-nlp/app/inference.py`. C'est le geste cœur de ce brief
-(adaptation d'un service au format métier).
+Pour le mapping on va utiliser le critère utilisé dans l'article HuggingFace consiste à sommer les scores 1 étoile et 2 étoiles pour obtenir le score du sentiment "négatif", à sommer les scores 4 et 5 étoiles pour obtenir le score du sentiment positif, et garder le score 3 étoiles pour le score neutre.
+
+On pourrait sommer 2, 3 et 4 étoiles pour le score neutre et ne garder que les extrêmes pour les sentiment négatifs et positifs. 
+
+Pour améliorer les résultats, on pourrait calculer une régression sur les cas tests ou réentrainer le modèle sur les données test pour adapter à une sortie sur 3 classes.
 
 ---
 
-## Endpoints fournis
+## Endpoints API
 
-| Endpoint | Statut au clone | Ce que tu dois faire |
+| Endpoint
 |---|---|---|
-| `GET /health` | ✅ fonctionnel | rien |
-| `GET /info` | ✅ fonctionnel | rien |
-| `POST /predict` | ❌ 501 Not Implemented | implémenter (avec mapping 5→3) |
-
-L'UI Streamlit est lancée mais affiche **« API non branchée »** tant que tu
-n'as pas branché l'appel HTTP dans `services/ui-streamlit/app.py`.
-
----
-
-## Structure
-
-```
-.
-├── docker-compose.yml             ← 2 services + healthcheck api-nlp
-├── .env.example
-├── services/
-│   ├── api-nlp/                   ← FastAPI + transformers
-│   │   ├── Dockerfile
-│   │   ├── requirements.txt
-│   │   ├── app/
-│   │   │   ├── main.py            ← routes (lifespan + /health + /info + /predict)
-│   │   │   ├── schemas.py         ← Pydantic ReviewIn / SentimentOut
-│   │   │   └── inference.py       ← TON CODE + mapping 5→3
-│   │   └── tests/
-│   │       └── test_health.py     ← 1 test pytest qui passe
-│   └── ui-streamlit/              ← UI utilisateur
-│       ├── Dockerfile
-│       ├── requirements.txt
-│       └── app.py                 ← UI à compléter
-├── data/
-│   └── sample_reviews.csv         ← 30 reviews FR fictives (Aubergine Hôtels)
-└── postman/
-    └── M0-B2_collection.json      ← à compléter
-```
+| `GET /health`
+| `GET /info`
+| `POST /predict`
 
 ---
 
@@ -93,20 +78,7 @@ docker compose ps
 Si le service reste `unhealthy` au bout de 2 min, regarde les logs :
 `docker compose logs api-nlp`.
 
----
-
-## Tests
-
-Lance les tests **dans le conteneur API** :
-
-```bash
-docker compose exec api-nlp pytest -v
-```
-
-Au clone, 1 test passe (`test_health.py`). À toi d'ajouter au moins
-2 tests pour `/predict`.
-
----
+Logs en temps réel : `docker compose logs -f api-nlp`.
 
 ## Variables d'environnement (`.env`)
 
@@ -117,16 +89,73 @@ Au clone, 1 test passe (`test_health.py`). À toi d'ajouter au moins
 
 ---
 
-## Débugging rapide
+## Tests
 
-| Symptôme | À tenter |
-|---|---|
-| `docker compose up` reste bloqué sur `pulling/building` | 1ᵉʳ build = 3-5 min + 1-3 min download modèle, patiente |
-| `/predict` renvoie toujours 501 | Tu n'as pas encore complété `inference.py`, c'est normal |
-| `/predict` renvoie `"1 star"` au lieu de `"négatif"` | Mapping 5→3 pas implémenté |
-| L'UI affiche « API non branchée » | Tu dois compléter `app.py` dans `services/ui-streamlit/` |
-| `Connection refused` depuis l'UI | Vérifie que l'URL est `http://api-nlp:8000` (nom de service docker), pas `localhost` |
-| `ModuleNotFoundError` | Rebuild : `docker compose build --no-cache api-nlp` |
-| Service `unhealthy` | `docker compose logs api-nlp` — le modèle ne se charge probablement pas (réseau, mémoire) |
+Lancement des tests **dans le conteneur API** :
 
-Logs en temps réel : `docker compose logs -f api-nlp`.
+```bash
+docker compose exec api-nlp pytest -v
+```
+
+## Limites du modèle
+
+Certains avis ne sont pas classés conformément à la note client
+
+1. Review positive classée neutre : "Pas mauvais du tout, on s'attendait à pire vu les avis. Bonne surprise sur le rapport qualité-prix."
+
+```
+{
+    "sentiment": "neutre",
+    "scores_5_stars": {
+        "3 stars": 0.6678569912910461,
+        "2 stars": 0.1897788941860199,
+        "4 stars": 0.11319638788700104,
+        "1 star": 0.018008295446634293,
+        "5 stars": 0.01115933433175087
+    },
+    "model_name": "cmarkea/distilcamembert-base-sentiment",
+    "latence_ms": 19.54174041748047
+}
+```
+
+Le LLM semble mal analyser les relations entre les mots privilégiant "pas mauvais", "on s'attendait àpire" à "Bonne surprise". Ce n'est pas un contre-sens complet mais on note que la classe qui arrive deuxième est 2 étaoiles. Le modèle aurait dû privilégier la classe 4 étoiles en 2 deuxième, ce qui confirme que les éléments individuels ont été déterminants plus que l'association de ce éléments.
+
+2. Review neutre classée positive : "Etablissement standard, conforme à  la description. Rien à signaler de particulier."
+
+```
+{
+    "sentiment": "positif",
+    "scores_5_stars": {
+        "4 stars": 0.5424525141716003,
+        "5 stars": 0.35321828722953796,
+        "3 stars": 0.09587699919939041,
+        "2 stars": 0.006946119945496321,
+        "1 star": 0.0015061176382005215
+    },
+    "model_name": "cmarkea/distilcamembert-base-sentiment",
+    "latence_ms": 23.793935775756836
+}
+```
+
+Il s'agit clairement d'une erreur manifeste du modèle. Rien dans la phrase n'est positif, le score 3 étoiles aurait dû être largement supérieur à ceux des 4 autres classes.
+
+3. Review négative classée positive : "On a passé un séjour qu'on n'oubliera pas. La climatisation en panne en plein août, sympa."
+
+{
+    "sentiment": "positif",
+    "scores_5_stars": {
+        "4 stars": 0.5082716345787048,
+        "5 stars": 0.39503979682922363,
+        "3 stars": 0.08835653215646744,
+        "2 stars": 0.006615230347961187,
+        "1 star": 0.0017168421763926744
+    },
+    "model_name": "cmarkea/distilcamembert-base-sentiment",
+    "latence_ms": 32.874345779418945
+}
+
+Le modèle n'a pas analysé correctement les relations entre les éléments de la phrase. Encore une fois les élements sympa, "séjour qu'on n'oubliera pas" ont pris le pas sur le sens global et l'ironie du message.
+
+Les scores associés à ces requêtes montre que la correction de ces erreurs ne pourra se faire qu'avec un meilleur modèle avec plus de paramètres ou en faisant un finetuning sur un  corpus de données plus représentatif des avis hôtelier. Améliorer le mapping ne suffira pas à améliorer les résultats.
+
+---

@@ -6,7 +6,7 @@ un service basé sur le modèle DistilCamemBERT permettant de classer les avis e
 
 ## Architecture
 
-<img src="./images/ArchitectureM0_B2.jpg" width="1500">
+<img src="./Images/ArchitectureM0_B2.jpg" width="1500">
 
 ## Organisation du repo
 
